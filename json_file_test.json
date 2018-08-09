@@ -1,0 +1,14 @@
+{
+    "key": "val",
+    "nested_key": {
+        "in_nested_key": "nested_val"
+    },
+    "nested_key_with_array": [
+        {
+            "array_key_1": "array_val_1"
+        },
+        {
+            "array_key_2": "array_val_2"
+        }
+    ]
+}
