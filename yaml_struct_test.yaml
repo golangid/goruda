@@ -1,0 +1,17 @@
+definitions:
+  CatalogItem:
+    type: object
+    properties:
+      id:
+        type: integer
+      title:
+        type: string
+      image:
+        type: object
+        properties:
+          url:
+            type: string
+          width:
+            type: integer
+          height:
+            type: integer
