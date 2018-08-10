@@ -1,13 +1,23 @@
 package goruda
 
 import (
+	"fmt"
+	"go/build"
 	"io/ioutil"
 	"os"
+	"path"
+	"reflect"
 	"strings"
+	"time"
 
 	"text/template"
 
+	"github.com/Masterminds/sprig"
 	"gopkg.in/yaml.v2"
+)
+
+const (
+	gorudaPacakages = "github.com/golangid/goruda"
 )
 
 // GenerateStructFromYAML is function to generate struct entity based on yaml file
@@ -108,6 +118,29 @@ func produceStruct(name string, properties map[interface{}]interface{}) error {
 	return writeGeneratedStructToFile(resultStructSpecification)
 }
 
+func getDataType(origin string) string {
+
+	switch origin {
+	case "integer":
+		return reflect.Int64.String()
+	case "number":
+		return reflect.Float64.String()
+	}
+	return origin
+}
+
+func extractMapToStrcutProperties(mapFieldStruct map[string]string) []Attribute {
+	res := []Attribute{}
+	for fieldName, fieldType := range mapFieldStruct {
+		att := Attribute{
+			Name: fieldName,
+			Type: getDataType(fieldType),
+		}
+		res = append(res, att)
+	}
+	return res
+}
+
 func writeGeneratedStructToFile(structValue map[string]interface{}) error {
 	structName := ""
 	for key := range structValue {
@@ -120,14 +153,13 @@ func writeGeneratedStructToFile(structValue map[string]interface{}) error {
 	}
 
 	data := DomainData{
-		StructName:       structName,
-		StructProperties: mapFieldWithType,
+		TimeStamp:  time.Now(),
+		StructName: structName,
+		Attributes: extractMapToStrcutProperties(mapFieldWithType),
 	}
-
-	tmpl, err := template.New("test").Parse("package menekel \n\ntype {{.StructName}} struct " +
-		"{ \n {{range $key, $value := .StructProperties}} {{$key}} {{if eq $value \"integer\"}} " +
-		"int64 {{else if eq $value \"object\"}} {{$key}} {{else}} {{$value}} {{end}}\n {{end}} }")
-
+	filePath := fmt.Sprintf("%s/src/%s/template/struct_template.tpl", build.Default.GOPATH, gorudaPacakages)
+	nameFile := path.Base(filePath)
+	tmpl, err := template.New(nameFile).Funcs(sprig.TxtFuncMap()).ParseFiles(filePath)
 	if err != nil {
 		return err
 	}
