@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"regexp"
 	"strings"
 	"time"
 
@@ -103,11 +104,26 @@ func produceStruct(name string, properties map[interface{}]interface{}) error {
 			return ErrWrongYAMLFormat
 		}
 
-		if typeString == "object" {
+		switch typeString {
+		case "object":
 			err := produceStruct(fieldName, propertyCasted["properties"].(map[interface{}]interface{}))
 			if err != nil {
 				return err
 			}
+		case "array":
+			itemsString, ok := propertyCasted["items"].(map[interface{}]interface{})
+			if !ok {
+				return ErrWrongYAMLFormat
+			}
+
+			arrayType, err := resolveArrayType(itemsString)
+			if err != nil {
+				return err
+			}
+
+			typeString = arrayType
+		default:
+			typeString = getDataType(typeString)
 		}
 
 		fieldName = strings.Title(fieldName)
@@ -119,12 +135,13 @@ func produceStruct(name string, properties map[interface{}]interface{}) error {
 }
 
 func getDataType(origin string) string {
-
 	switch origin {
 	case "integer":
 		return reflect.Int64.String()
 	case "number":
 		return reflect.Float64.String()
+	case "boolean":
+		return reflect.Bool.String()
 	}
 	return origin
 }
@@ -134,7 +151,7 @@ func extractMapToStrcutProperties(mapFieldStruct map[string]string) []Attribute 
 	for fieldName, fieldType := range mapFieldStruct {
 		att := Attribute{
 			Name: fieldName,
-			Type: getDataType(fieldType),
+			Type: fieldType,
 		}
 		res = append(res, att)
 	}
@@ -153,9 +170,10 @@ func writeGeneratedStructToFile(structValue map[string]interface{}) error {
 	}
 
 	data := DomainData{
-		TimeStamp:  time.Now(),
-		StructName: structName,
-		Attributes: extractMapToStrcutProperties(mapFieldWithType),
+		Packagename: "menekel",
+		TimeStamp:   time.Now(),
+		StructName:  structName,
+		Attributes:  extractMapToStrcutProperties(mapFieldWithType),
 	}
 	filePath := fmt.Sprintf("%s/src/%s/template/struct_template.tpl", build.Default.GOPATH, gorudaPacakages)
 	nameFile := path.Base(filePath)
@@ -183,8 +201,20 @@ func writeGeneratedStructToFile(structValue map[string]interface{}) error {
 		return err
 	}
 
-	//TO DO
-	//need to write to file
-
 	return nil
+}
+
+func resolveArrayType(itemsValue map[interface{}]interface{}) (string, error) {
+	value, ok := itemsValue["$ref"].(string)
+	if !ok {
+		return "", ErrWrongYAMLFormat
+	}
+
+	re := regexp.MustCompile(`^#\/definitions\/(.+)`)
+	match := re.FindStringSubmatch(value)
+	if len(match) < 2 {
+		return "", ErrWrongYAMLFormat
+	}
+
+	return `[]` + match[1], nil
 }
