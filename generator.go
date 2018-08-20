@@ -9,13 +9,15 @@ import (
 	"reflect"
 	"regexp"
 	"text/template"
+	"time"
 
 	"github.com/Masterminds/sprig"
 	"github.com/ghodss/yaml"
 )
 
 const (
-	gorudaPacakages = "github.com/golangid/goruda"
+	gorudaPacakages       = "github.com/golangid/goruda"
+	regexComponentSchemas = `^#\/components\/schemas\/(.+)`
 )
 
 // GenerateStructFromYAML is function to generate struct entity based on yaml file
@@ -79,7 +81,9 @@ func produceStruct(schemas map[string]interface{}) error {
 
 	for key, val := range schemas {
 		domainData := DomainData{
-			StructName: key,
+			StructName:  key,
+			TimeStamp:   time.Now(),
+			Packagename: "generated",
 		}
 		valMap := val.(map[string]interface{})
 		err := fillDomainData(&domainData, valMap)
@@ -202,7 +206,7 @@ func resolveArrayType(domain *DomainData, attributes map[string]interface{}) err
 	}
 
 	if typeVal == "array" {
-		re := regexp.MustCompile(`^#\/components\/schemas\/(.+)`)
+		re := regexp.MustCompile(regexComponentSchemas)
 		itemsMap := attributes["items"].(map[string]interface{})
 		refVal := itemsMap["$ref"].(string)
 		match := re.FindStringSubmatch(refVal)
