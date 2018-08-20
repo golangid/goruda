@@ -10,7 +10,6 @@ import (
 	"regexp"
 	"text/template"
 
-	// "gopkg.in/yaml.v2"
 	"github.com/Masterminds/sprig"
 	"github.com/ghodss/yaml"
 )
