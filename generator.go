@@ -219,19 +219,3 @@ func resolveArrayType(domain *DomainData, attributes map[string]interface{}) err
 
 	return nil
 }
-
-// func resolveArrayType(domain *DomainData, attributes map[string]interface{}) error {
-// 	// value, ok := itemsValue["$ref"].(string)
-// 	// if !ok {
-// 	// 	return "", ErrWrongYAMLFormat
-// 	// }
-
-// 	// re := regexp.MustCompile(`^#\/definitions\/(.+)`)
-// 	// match := re.FindStringSubmatch(value)
-// 	// if len(match) < 2 {
-// 	// 	return "", ErrWrongYAMLFormat
-// 	// }
-
-// 	// return `[]` + match[1], nil
-// 	return nil
-// }
