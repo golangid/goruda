@@ -8,13 +8,11 @@ import (
 	"path"
 	"reflect"
 	"regexp"
-	"strings"
-	"time"
-
 	"text/template"
 
+	// "gopkg.in/yaml.v2"
 	"github.com/Masterminds/sprig"
-	"gopkg.in/yaml.v2"
+	"github.com/ghodss/yaml"
 )
 
 const (
@@ -34,36 +32,13 @@ func GenerateStructFromYAML(filePath string) error {
 		return err
 	}
 
-	itemDefinitions := res["definitions"]
-	itemDefinitionsValue, ok := itemDefinitions.(map[interface{}]interface{})
+	components, ok := res["components"]
 	if !ok {
 		return ErrWrongYAMLFormat
 	}
-
-	structName := make([]string, 0)
-
-	for key := range itemDefinitionsValue {
-		value, ok := key.(string)
-		if !ok {
-			return ErrWrongYAMLFormat
-		}
-		structName = append(structName, value)
-	}
-
-	for _, name := range structName {
-		properties := itemDefinitionsValue[name]
-		propertiesCasted, ok := properties.(map[interface{}]interface{})
-		if !ok {
-			return ErrWrongYAMLFormat
-		}
-
-		if propertiesCasted["type"] == "object" {
-			err := produceStruct(name, propertiesCasted["properties"].(map[interface{}]interface{}))
-			if err != nil {
-				return err
-			}
-
-		}
+	err = processComponents(components)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -79,102 +54,118 @@ func readFile(filePath string) ([]byte, error) {
 	return ioutil.ReadAll(file)
 }
 
-func produceStruct(name string, properties map[interface{}]interface{}) error {
-	fieldDescription := map[string]interface{}{}
-	fieldWithType := map[string]string{}
-	resultStructSpecification := map[string]interface{}{}
-	for name, property := range properties {
-		nameValue, ok := name.(string)
-		if !ok {
-			return ErrWrongYAMLFormat
-		}
-		fieldDescription[nameValue] = property
-	}
+func processPath(path interface{}) {
 
-	name = strings.Title(name)
-
-	for fieldName, property := range fieldDescription {
-		propertyCasted, ok := property.(map[interface{}]interface{})
-		if !ok {
-			return ErrWrongYAMLFormat
-		}
-
-		typeString, ok := propertyCasted["type"].(string)
-		if !ok {
-			return ErrWrongYAMLFormat
-		}
-
-		switch typeString {
-		case "object":
-			err := produceStruct(fieldName, propertyCasted["properties"].(map[interface{}]interface{}))
-			if err != nil {
-				return err
-			}
-		case "array":
-			itemsString, ok := propertyCasted["items"].(map[interface{}]interface{})
-			if !ok {
-				return ErrWrongYAMLFormat
-			}
-
-			arrayType, err := resolveArrayType(itemsString)
-			if err != nil {
-				return err
-			}
-
-			typeString = arrayType
-		default:
-			typeString = getDataType(typeString)
-		}
-
-		fieldName = strings.Title(fieldName)
-		fieldWithType[fieldName] = typeString
-		resultStructSpecification[name] = fieldWithType
-	}
-
-	return writeGeneratedStructToFile(resultStructSpecification)
 }
 
-func getDataType(origin string) string {
-	switch origin {
-	case "integer":
-		return reflect.Int64.String()
-	case "number":
-		return reflect.Float64.String()
-	case "boolean":
-		return reflect.Bool.String()
+func isString(k interface{}) bool {
+	switch k.(type) {
+	case string:
+		return true
 	}
-	return origin
+	return false
 }
 
-func extractMapToStrcutProperties(mapFieldStruct map[string]string) []Attribute {
-	res := []Attribute{}
-	for fieldName, fieldType := range mapFieldStruct {
+func processComponents(components interface{}) error {
+
+	componentsMap := components.(map[string]interface{})
+
+	schemasMap := componentsMap["schemas"].(map[string]interface{})
+	return produceStruct(schemasMap)
+
+}
+
+func produceStruct(schemas map[string]interface{}) error {
+	domainDatas := []DomainData{}
+
+	for key, val := range schemas {
+		domainData := DomainData{
+			StructName: key,
+		}
+		valMap := val.(map[string]interface{})
+		err := fillDomainData(&domainData, valMap)
+		if err != nil {
+			return err
+		}
+
+		domainDatas = append(domainDatas, domainData)
+
+	}
+	for _, data := range domainDatas {
+		err := writeToFile(data)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func fillDomainData(domainData *DomainData, attributes map[string]interface{}) error {
+
+	properties := attributes["properties"]
+	arrType := attributes["type"]
+	if arrType != nil {
+		err := resolveArrayType(domainData, attributes)
+		if err != nil {
+			return err
+		}
+	}
+	propertiesMap := map[string]interface{}{}
+	if properties != nil {
+		propertiesMap = properties.(map[string]interface{})
+	}
+	arrAttribute := []Attribute{}
+	for key, val := range propertiesMap {
 		att := Attribute{
-			Name: fieldName,
-			Type: fieldType,
+			Name: key,
 		}
-		res = append(res, att)
+		valMap := val.(map[string]interface{})
+		err := fillDataType(&att, valMap)
+		if err != nil {
+			return err
+		}
+
+		arrAttribute = append(arrAttribute, att)
 	}
-	return res
+	domainData.Attributes = append(domainData.Attributes, arrAttribute...)
+	return nil
 }
 
-func writeGeneratedStructToFile(structValue map[string]interface{}) error {
-	structName := ""
-	for key := range structValue {
-		structName = key
-	}
-
-	mapFieldWithType, ok := structValue[structName].(map[string]string)
-	if !ok {
+func fillDataType(att *Attribute, dataType map[string]interface{}) error {
+	typeAtt := dataType["type"]
+	typeFormat := dataType["format"]
+	if typeAtt == nil {
 		return ErrWrongYAMLFormat
 	}
 
-	data := DomainData{
-		Packagename: "menekel",
-		TimeStamp:   time.Now(),
-		StructName:  structName,
-		Attributes:  extractMapToStrcutProperties(mapFieldWithType),
+	res, err := getDataType(typeAtt, typeFormat)
+	if err != nil {
+		return err
 	}
+	att.Type = res
+	return nil
+}
+func getDataType(typeAtt, format interface{}) (string, error) {
+
+	typeRes, ok := typeAtt.(string)
+	if !ok {
+		return "", ErrWrongYAMLFormat
+	}
+
+	switch typeRes {
+	case "string":
+		return reflect.String.String(), nil
+	case "integer":
+		if format != nil {
+			return format.(string), nil
+		}
+		return reflect.Int64.String(), nil
+	}
+	return "", nil
+}
+
+func writeToFile(data DomainData) error {
+
 	filePath := fmt.Sprintf("%s/src/%s/template/struct_template.tpl", build.Default.GOPATH, gorudaPacakages)
 	nameFile := path.Base(filePath)
 	tmpl, err := template.New(nameFile).Funcs(sprig.TxtFuncMap()).ParseFiles(filePath)
@@ -189,7 +180,7 @@ func writeGeneratedStructToFile(structValue map[string]interface{}) error {
 		}
 	}
 
-	file, err := os.Create("generated/" + structName + ".go")
+	file, err := os.Create("generated/" + data.StructName + ".go")
 	if err != nil {
 		return err
 	}
@@ -204,17 +195,43 @@ func writeGeneratedStructToFile(structValue map[string]interface{}) error {
 	return nil
 }
 
-func resolveArrayType(itemsValue map[interface{}]interface{}) (string, error) {
-	value, ok := itemsValue["$ref"].(string)
+func resolveArrayType(domain *DomainData, attributes map[string]interface{}) error {
+
+	typeVal, ok := attributes["type"].(string)
 	if !ok {
-		return "", ErrWrongYAMLFormat
+		return ErrWrongYAMLFormat
 	}
 
-	re := regexp.MustCompile(`^#\/definitions\/(.+)`)
-	match := re.FindStringSubmatch(value)
-	if len(match) < 2 {
-		return "", ErrWrongYAMLFormat
+	if typeVal == "array" {
+		re := regexp.MustCompile(`^#\/components\/schemas\/(.+)`)
+		itemsMap := attributes["items"].(map[string]interface{})
+		refVal := itemsMap["$ref"].(string)
+		match := re.FindStringSubmatch(refVal)
+		if len(match) < 2 {
+			return ErrWrongYAMLFormat
+		}
+		att := Attribute{
+			Name: fmt.Sprintf("%ss", match[1]),
+			Type: fmt.Sprintf("[]%s", match[1]),
+		}
+		domain.Attributes = append(domain.Attributes, att)
 	}
 
-	return `[]` + match[1], nil
+	return nil
 }
+
+// func resolveArrayType(domain *DomainData, attributes map[string]interface{}) error {
+// 	// value, ok := itemsValue["$ref"].(string)
+// 	// if !ok {
+// 	// 	return "", ErrWrongYAMLFormat
+// 	// }
+
+// 	// re := regexp.MustCompile(`^#\/definitions\/(.+)`)
+// 	// match := re.FindStringSubmatch(value)
+// 	// if len(match) < 2 {
+// 	// 	return "", ErrWrongYAMLFormat
+// 	// }
+
+// 	// return `[]` + match[1], nil
+// 	return nil
+// }
