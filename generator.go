@@ -48,9 +48,19 @@ func generateStructs(swagger *openapi3.Swagger) error {
 }
 
 func getType(schema *openapi3.SchemaRef) string {
-
 	if schema.Ref != "" {
 		return strings.Split(schema.Ref, "/")[3]
+	}
+	if len(schema.Value.OneOf) > 0 ||
+		len(schema.Value.AnyOf) > 0 ||
+		len(schema.Value.AllOf) > 0 {
+		// TODO: (by bxcodec)
+		// It's hard to define one if it comes to this kind of data:
+		//  - oneOf
+		//  - allOf
+		//  - anyOf
+		// Just return an plain interface{} let the developer decide later what should it best to this data types
+		return "interface{}"
 	}
 
 	switch schema.Value.Type {
@@ -68,7 +78,26 @@ func getType(schema *openapi3.SchemaRef) string {
 		}
 		return "string"
 	case "object":
-		return "interface{}"
+		// TODO: (by bxcodec)
+		// This section temporary I just send map[string]interface{}
+		// Based on the condition that I believe, if it was an embedded object:
+		// For example, this Article schema.
+		// ```
+		// Article:
+		//  properties:
+		// 	  publisher:
+		// 	   	type: object
+		// 	   	properties:
+		// 		 id:
+		// 		   type: string
+		// 		 name:
+		// 		   type: string
+		// ```
+		// That means, that publisher's object is not necesessary to have in the code as a struct.
+		// If it important to have as a struct it must defined using `$ref` then.
+		// But I'm a bit confused to use between interface{} or explicitly using map[string]interface{} will decide later
+		// after a real test
+		return "map[string]interface{}"
 	case "array":
 		if items := schema.Value.Items; items != nil {
 			return fmt.Sprintf("[]%s", getType(items))

@@ -102,9 +102,7 @@ components:
         title:
           type: string
         tag:
-          type: array
-          items:
-            type: string
+          $ref: "#/components/schemas/Tag"
         author:
           $ref: "#/components/schemas/Author"
         created_at:
@@ -113,6 +111,28 @@ components:
         updated_at:
           type: string
           format: date
+        publisher:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string 
+
+    Tag:
+        properties:
+          type:
+            type: string
+          content:
+            oneOf:
+              - type: string
+              - $ref: "#/components/schemas/Topic"
+    Topic:
+        properties:
+          id:
+            type: string
+          name: 
+            type: string
     Author:
       properties:
         id:
