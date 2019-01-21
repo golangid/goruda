@@ -50,15 +50,23 @@ func generateStructs(swagger *openapi3.Swagger) error {
 func getType(schema *openapi3.SchemaRef) string {
 
 	if schema.Ref != "" {
-		// TODO: (by bxcodec)
-		// Add specific jobs to finish that using ref
+		return strings.Split(schema.Ref, "/")[3]
 	}
+
 	switch schema.Value.Type {
 	case "integer":
 		if schema.Value.Format != "" {
 			return schema.Value.Format
 		}
 		return "int"
+	case "string":
+		if format := schema.Value.Format; format != "" {
+			switch format {
+			case "date-time", "date":
+				return "time.Time"
+			}
+		}
+		return "string"
 	case "object":
 		return "interface{}"
 	case "array":
@@ -78,16 +86,28 @@ func generateStruct(name string, schema *openapi3.SchemaRef) error {
 		Packagename: "domain",
 	}
 	attributes := []Attribute{}
+	imports := map[string]Import{}
 	for k, v := range schema.Value.Properties {
 		att := Attribute{
-			Name: strings.ToTitle(k),
+			Name: k,
 			Type: getType(v),
 		}
+		setImports(getType(v), imports)
 		attributes = append(attributes, att)
 	}
 	dmData.Attributes = attributes
-
+	dmData.Imports = imports
 	return generateFile(dmData)
+}
+
+func setImports(dataType string, imports map[string]Import) {
+	switch dataType {
+	case "time.Time":
+		imports["time"] = Import{
+			Alias: "time",
+			Path:  "time",
+		}
+	}
 }
 
 func generateStructFile(data DomainData) error {

@@ -105,6 +105,20 @@ components:
           type: array
           items:
             type: string
+        author:
+          $ref: "#/components/schemas/Author"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date
+    Author:
+      properties:
+        id:
+          type: string
+        name:
+          type: string 
     Articles:
       type: array
       items:
