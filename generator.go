@@ -28,23 +28,19 @@ func generateStructs(swagger *openapi3.Swagger) error {
 		t := v.Value.Type
 		switch t {
 		case "array":
-			fmt.Println("Array In")
 		case "object":
 			err := generateStruct(k, v)
 			if err != nil {
 				return err
 			}
-			fmt.Println("========")
 		default:
 			if len(v.Value.Properties) > 0 {
 				err := generateStruct(k, v)
 				if err != nil {
 					return err
 				}
-				fmt.Println("========")
 				continue
 			}
-			fmt.Println("Default In, ", t)
 		}
 
 	}
@@ -82,7 +78,6 @@ func generateStruct(name string, schema *openapi3.SchemaRef) error {
 		Packagename: "domain",
 	}
 	attributes := []Attribute{}
-	fmt.Println("NAME : ", name)
 	for k, v := range schema.Value.Properties {
 		att := Attribute{
 			Name: strings.ToTitle(k),
