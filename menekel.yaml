@@ -1,0 +1,121 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Menekel
+  license:
+    name: MIT
+servers:
+  - url: http://menekel.swagger.io/v1
+paths:
+  /article:
+    get:
+      summary: List all article
+      operationId: listArticles
+      tags:
+        - articles
+      parameters:
+        - name: num
+          in: query
+          description: How many items to return at one time (max 100)
+          required: false
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: A paged array of articles
+          headers:
+            x-cursor:
+              description: A cursor to the next page of responses
+              schema:
+                type: string
+          content:
+            application/json:    
+              schema:
+                $ref: "#/components/schemas/Articles"
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      summary: Create an article
+      operationId: createArticles
+      tags:
+        - articles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Article"
+      responses:
+        '201':
+          description: Created Article response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Article"
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /article/{articleId}:
+    get:
+      summary: Info for a specific article
+      operationId: showArticleById
+      tags:
+        - articles
+      parameters:
+        - name: articleId
+          in: path
+          required: true
+          description: The id of the article to retrieve
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Expected response to a valid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Article"
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+components:
+  schemas:
+    Article:
+      required:
+        - id
+        - title
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+        title:
+          type: string
+        tag:
+          type: array
+          items:
+            type: string
+    Articles:
+      type: array
+      items:
+        $ref: "#/components/schemas/Article"
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
