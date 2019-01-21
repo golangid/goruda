@@ -55,7 +55,7 @@ func getType(schema *openapi3.SchemaRef) string {
 		len(schema.Value.AnyOf) > 0 ||
 		len(schema.Value.AllOf) > 0 {
 		// TODO: (by bxcodec)
-		// It's hard to define one if it comes to this kind of data:
+		// It's hard to define if it comes to this kind of data:
 		//  - oneOf
 		//  - allOf
 		//  - anyOf
