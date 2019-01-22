@@ -7,7 +7,7 @@ import (
 )
 
 func TestGenerateStruct(t *testing.T) {
-	err := goruda.Generate("./menekel.yaml")
+	err := goruda.Generate("./docs/menekel.yaml")
 	if err != nil {
 		t.Error(err)
 	}
