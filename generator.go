@@ -2,14 +2,13 @@ package goruda
 
 import (
 	"fmt"
-	"go/build"
+	"github.com/Masterminds/sprig"
+	"github.com/gobuffalo/packr"
 	"os"
-	"path"
 	"strings"
 	"text/template"
 	"time"
 
-	"github.com/Masterminds/sprig"
 	"github.com/getkin/kin-openapi/openapi3"
 )
 
@@ -140,9 +139,12 @@ func setImports(dataType string, imports map[string]Import) {
 }
 
 func generateStructFile(data DomainData) error {
-	filePath := fmt.Sprintf("%s/src/%s/templates/struct_template.tpl", build.Default.GOPATH, gorudaPacakages)
-	nameFile := path.Base(filePath)
-	tmpl, err := template.New(nameFile).Funcs(sprig.TxtFuncMap()).ParseFiles(filePath)
+	box := packr.NewBox("./templates")
+	str, err := box.FindString("struct_template.tpl")
+	if err != nil {
+		return err
+	}
+	tmpl, err := template.New("struct_template").Funcs(sprig.TxtFuncMap()).Parse(str)
 	if err != nil {
 		return err
 	}
