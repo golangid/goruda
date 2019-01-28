@@ -26,16 +26,13 @@ func generateStructs(swagger *openapi3.Swagger) error {
 	for k, v := range swagger.Components.Schemas {
 		t := v.Value.Type
 		switch t {
-		case "array":
 		case "object":
-			err := generateStruct(k, v)
-			if err != nil {
+			if err := generateStruct(k, v); err != nil {
 				return err
 			}
 		default:
 			if len(v.Value.Properties) > 0 {
-				err := generateStruct(k, v)
-				if err != nil {
+				if err := generateStruct(k, v); err != nil {
 					return err
 				}
 				continue
@@ -150,8 +147,7 @@ func generateStructFile(data DomainData) error {
 	}
 
 	if _, err := os.Stat("generated"); os.IsNotExist(err) {
-		err = os.Mkdir("generated", os.ModePerm)
-		if err != nil {
+		if err = os.Mkdir("generated", os.ModePerm); err != nil {
 			return err
 		}
 	}
@@ -161,16 +157,14 @@ func generateStructFile(data DomainData) error {
 		return err
 	}
 	defer file.Close()
-	err = tmpl.Execute(file, data)
-	if err != nil {
+	if err = tmpl.Execute(file, data); err != nil {
 		return err
 	}
 	return nil
 }
 
 func generateFile(data DomainData) error {
-	err := generateStructFile(data)
-	if err != nil {
+	if err := generateStructFile(data); err != nil {
 		return err
 	}
 	// TODO: (by bxcodec)
