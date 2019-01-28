@@ -4,10 +4,9 @@ go:
   - "1.11.4"
 
 before_script:
-  - pwd
   - cd $GOPATH/bin
   - go get -u github.com/gobuffalo/packr/packr
-  - cd ~
+  - cd ${TRAVIS_HOME}/gopath/src/github.com/golangid/goruda
   - export GO111MODULE=on
 
 script:
