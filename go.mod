@@ -12,6 +12,8 @@ require (
 	github.com/google/uuid v1.1.0 // indirect
 	github.com/huandu/xstrings v1.2.0 // indirect
 	github.com/imdario/mergo v0.3.6 // indirect
+	github.com/sirupsen/logrus v1.3.0
+	github.com/spf13/cobra v0.0.3
 	github.com/ugorji/go/codec v0.0.0-20190126102652-8fd0f8d918c8 // indirect
 	golang.org/x/crypto v0.0.0-20190123085648-057139ce5d2b // indirect
 	golang.org/x/net v0.0.0-20190125091013-d26f9f9a57f3 // indirect
