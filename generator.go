@@ -294,6 +294,12 @@ func generateHTTPDeliveryFile(data HTTPData) error {
 		return err
 	}
 
+	if _, err := os.Stat("generated/internal"); os.IsNotExist(err) {
+		if err = os.Mkdir("generated/internal", os.ModePerm); err != nil {
+			return err
+		}
+	}
+
 	if _, err := os.Stat("generated/internal/delivery"); os.IsNotExist(err) {
 		if err = os.Mkdir("generated/internal/delivery", os.ModePerm); err != nil {
 			return err
