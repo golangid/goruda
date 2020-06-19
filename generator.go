@@ -311,6 +311,41 @@ func (g Goruda) retrieveAbstraction(paths openapi3.Paths) AbstractionData {
 				ReturnValue: returnValues,
 			}
 		}
+
+		if item.Put != nil {
+			name := item.Put.OperationID
+			params := Attributes{}
+			returnValues := Attributes{}
+			for code, resp := range item.Put.Responses {
+				if code == "200" {
+					t, _ := g.getType(resp.Value.Content.Get("application/json").Schema)
+					returnValues = append(returnValues, Attribute{
+						Type: t,
+					})
+				}
+			}
+
+			for _, parameter := range item.Get.Parameters {
+				schemaType, _ := g.getType(parameter.Value.Schema)
+				params = append(params, Attribute{
+					Name: parameter.Value.Name,
+					Type: schemaType,
+				})
+			}
+
+			schemaType, _ := g.getType(item.Put.RequestBody.Value.Content.
+				Get("application/json").Schema)
+			firstLetter := schemaType[0]
+			params = append(params, Attribute{
+				Name: strings.ToLower(string(firstLetter)) + schemaType[1:],
+				Type: schemaType,
+			})
+
+			methodsWithParam[name] = ListOfAttributes{
+				Attributes:  params,
+				ReturnValue: returnValues,
+			}
+		}
 	}
 
 	return AbstractionData{
