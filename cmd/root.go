@@ -17,6 +17,10 @@ func init() {
 	logrus.SetFormatter(&logrus.TextFormatter{
 		FullTimestamp: true,
 	})
+	generatorCMD.Flags().StringVarP(&packageName, "package", "p", "",
+		"Package name for the generated file. Default is domain")
+	generatorCMD.Flags().StringVarP(&pathToGeneratedFiles, "out", "o", "",
+		"Path to target directory. Default is ./generated")
 
 	RootCMD.AddCommand(generatorCMD)
 }
