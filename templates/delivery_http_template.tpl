@@ -10,11 +10,9 @@ import (
 	"github.com/labstack/echo"
 	"strconv"
 )
-{{ $packageName := .PackageName }}
-{{ $implementationName := print .ServiceName "Implementation" }}
-
+{{ $packageName := .PackageName }}{{ $implementationName := print .ServiceName "Implementation" }}{{ $serviceName := .ServiceName }}
 type httpHandler struct {
-	service {{ $packageName }}.Service
+	service {{ $packageName }}.{{ $serviceName }}
 }
 {{ range $key, $val := .Methods }}
 func (h httpHandler) {{ $key }}(c echo.Context) error {
@@ -45,7 +43,7 @@ func (h httpHandler) {{ $key }}(c echo.Context) error {
 }
 {{ end }}
 
-func RegisterHTTPPath(e *echo.Echo, service {{ $packageName }}.Service) {
+func RegisterHTTPPath(e *echo.Echo, service {{ $packageName }}.{{ $serviceName }}) {
 	handler := httpHandler{
 		service: service,
 	}
