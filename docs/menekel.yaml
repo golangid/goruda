@@ -111,6 +111,10 @@ components:
         updated_at:
           type: string
           format: date
+        details:
+          oneOf:
+            - $ref: '#/components/schemas/Tag'
+            - $ref: '#/components/schemas/Topic'
         publisher:
           type: object
           properties:
