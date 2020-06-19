@@ -16,6 +16,9 @@ import (
 )
 {{ end }}
 
+{{ if ne .SliceData.Type "" }}
+type {{.StructName}} []{{.SliceData.Type}}
+{{ else }}
 {{ if .IsPolymorph }}
  type {{.StructName}} struct {
 {{ else }}
@@ -38,4 +41,5 @@ import (
 			}
 		{{ end }}
 	{{- end }}
+{{ end }}
 {{ end }}

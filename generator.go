@@ -38,7 +38,7 @@ func (g Goruda) generateStructs(swagger *openapi3.Swagger) error {
 				return err
 			}
 		case "array":
-			if err := g.generateStruct(k, v); err != nil {
+			if err := g.generateSliceStruct(k, v); err != nil {
 				return err
 			}
 		default:
@@ -118,6 +118,30 @@ func (g Goruda) getType(schema *openapi3.SchemaRef, schemaTitle ...string) (stri
 		// Add Specific conditions for array of objects
 	}
 	return schema.Value.Type, false
+}
+
+func (g Goruda) generateSliceStruct(name string, schema *openapi3.SchemaRef) error {
+	dmData := DomainData{
+		StructName:  name,
+		TimeStamp:   time.Now(),
+		Packagename: g.PackageName,
+	}
+
+	imports := map[string]Import{}
+
+	schemType, isPolymorph := g.getType(schema.Value.Items, name)
+	if isPolymorph {
+		if err := g.generatePolymorphStruct(schemType, schema.Value.Items); err != nil {
+			return err
+		}
+	}
+	setImports(schemType, imports)
+
+	dmData.Imports = imports
+	dmData.SliceData = SliceData{
+		Type: schemType,
+	}
+	return g.generateFile(dmData)
 }
 
 func (g Goruda) generateStruct(name string, schema *openapi3.SchemaRef) error {
