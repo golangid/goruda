@@ -253,6 +253,24 @@ func (g Goruda) generateServiceFile(data AbstractionData) error {
 	if err = tmpl.Execute(file, data); err != nil {
 		return err
 	}
+
+	str, err = box.FindString("service_test_template.tpl")
+	if err != nil {
+		return err
+	}
+	tmpl, err = template.New("service_test_template").Funcs(sprig.TxtFuncMap()).Parse(str)
+	if err != nil {
+		return err
+	}
+
+	file, err = os.Create("generated/" + data.Name + "_test.go")
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	if err = tmpl.Execute(file, data); err != nil {
+		return err
+	}
 	return nil
 }
 
