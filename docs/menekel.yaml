@@ -21,6 +21,12 @@ paths:
           schema:
             type: integer
             format: int32
+        - name: cursor
+          in: query
+          description: next cursor for pagination
+          required: false
+          schema:
+            type: string
       responses:
         '200':
           description: A paged array of articles
