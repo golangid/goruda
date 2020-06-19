@@ -3,6 +3,7 @@
 // {{ .TimeStamp }}
 
 package delivery
+
 import (
 	"net/http"
 	{{ .PackageName }} "github.com/golangid/goruda/generated"
@@ -13,10 +14,10 @@ import (
 {{ $implementationName := print .ServiceName "Implementation" }}
 
 type httpHandler struct {
+	service {{ $packageName }}.Service
 }
 {{ range $key, $val := .Methods }}
 func (h httpHandler) {{ $key }}(c echo.Context) error {
-	service := {{ $packageName }}.{{ $implementationName }}{}
 	{{- range $index, $element := $val.Data.Attributes }}
 	{{ if $element.IsRequired }}
 	fromRequest{{ $index }} := c.Param("{{ $element.Name }}")
@@ -36,7 +37,7 @@ func (h httpHandler) {{ $key }}(c echo.Context) error {
 	{{ else }}input{{$index}} := fromRequest{{$index}}
 	{{ end }}
 	{{- end }}
-	result, err := service.{{ $key | camelcase }}({{ range $index, $element := $val.Data.Attributes }}{{ if ne $element.GetBitNumber "" }}int{{$element.GetBitNumber}}(input{{$index}}){{ if ne $index $val.Data.Attributes.GetLastIndex }},{{ end }}{{ else }}input{{$index}}{{ if ne $index $val.Data.Attributes.GetLastIndex }},{{ end }}{{ end }}{{ end }})
+	result, err := h.service.{{ $key | camelcase }}({{ range $index, $element := $val.Data.Attributes }}{{ if ne $element.GetBitNumber "" }}int{{$element.GetBitNumber}}(input{{$index}}){{ if ne $index $val.Data.Attributes.GetLastIndex }},{{ end }}{{ else }}input{{$index}}{{ if ne $index $val.Data.Attributes.GetLastIndex }},{{ end }}{{ end }}{{ end }})
 	if err != nil {
 		return err
 	}
@@ -44,8 +45,10 @@ func (h httpHandler) {{ $key }}(c echo.Context) error {
 }
 {{ end }}
 
-func RegisterHTTPPath(e *echo.Echo) {
-	handler := httpHandler{}
+func RegisterHTTPPath(e *echo.Echo, service {{ $packageName }}.Service) {
+	handler := httpHandler{
+		service: service,
+	}
 	{{- range $key, $val := .Methods }}
 	e.{{ $val.MethodsName }}("{{ $val.Path }}", handler.{{ $key }})
 	{{- end }}
