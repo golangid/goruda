@@ -13,7 +13,7 @@ func LoadSwaggerFile(swaggerFile string) *openapi3.Swagger {
 	var err error
 	var data []byte
 
-	if strings.HasPrefix(swaggerFile, "http") {
+	if strings.HasPrefix(swaggerFile, "delivery") {
 		resp, err := http.Get(swaggerFile)
 		if err != nil {
 			log.Fatal(err)

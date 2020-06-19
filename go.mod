@@ -14,11 +14,14 @@ require (
 	github.com/google/uuid v1.1.0 // indirect
 	github.com/huandu/xstrings v1.2.0 // indirect
 	github.com/imdario/mergo v0.3.6 // indirect
+	github.com/labstack/echo v3.3.10+incompatible
+	github.com/labstack/gommon v0.3.0 // indirect
+	github.com/pkg/errors v0.8.1 // indirect
 	github.com/sirupsen/logrus v1.3.0
 	github.com/spf13/cobra v0.0.3
+	github.com/stretchr/testify v1.4.0
 	github.com/ugorji/go/codec v0.0.0-20190126102652-8fd0f8d918c8 // indirect
 	golang.org/x/crypto v0.0.0-20190123085648-057139ce5d2b // indirect
 	golang.org/x/net v0.0.0-20190125091013-d26f9f9a57f3 // indirect
-	golang.org/x/sys v0.0.0-20190124100055-b90733256f2e // indirect
 	golang.org/x/tools v0.0.0-20190125232054-d66bd3c5d5a6 // indirect
 )

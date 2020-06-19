@@ -50,6 +50,15 @@ func generateStructs(swagger *openapi3.Swagger) error {
 	if err := generateServiceFile(retrieveAbstraction(swagger.Paths)); err != nil {
 		return err
 	}
+
+	if err := generateHTTPDeliveryFile(HTTPData{
+		TimeStamp:   time.Now(),
+		PackageName: "domain",
+		ServiceName: "Service",
+		Methods:     retrieveHTTPDeliveryData(swagger.Paths),
+	}); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -244,6 +253,34 @@ func generateServiceFile(data AbstractionData) error {
 	return nil
 }
 
+func generateHTTPDeliveryFile(data HTTPData) error {
+	box := packr.NewBox("./templates")
+	str, err := box.FindString("delivery_http_template.tpl")
+	if err != nil {
+		return err
+	}
+	tmpl, err := template.New("delivery_http_template").Funcs(sprig.TxtFuncMap()).Parse(str)
+	if err != nil {
+		return err
+	}
+
+	if _, err := os.Stat("generated/internal/delivery"); os.IsNotExist(err) {
+		if err = os.Mkdir("generated/internal/delivery", os.ModePerm); err != nil {
+			return err
+		}
+	}
+
+	file, err := os.Create("generated/internal/delivery/http.go")
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	if err = tmpl.Execute(file, data); err != nil {
+		return err
+	}
+	return nil
+}
+
 func generateFile(data DomainData) error {
 	if err := generateStructFile(data); err != nil {
 		return err
@@ -269,9 +306,16 @@ func retrieveAbstraction(paths openapi3.Paths) AbstractionData {
 				}
 			}
 			for _, parameter := range item.Get.Parameters {
+				isRequired := false
+				switch parameter.Value.In {
+				case "path":
+					isRequired = true
+				case "query":
+				}
 				params = append(params, Attribute{
-					Name: parameter.Value.Name,
-					Type: getType(parameter.Value.Schema),
+					Name:       parameter.Value.Name,
+					Type:       getType(parameter.Value.Schema),
+					IsRequired: isRequired,
 				})
 			}
 
@@ -287,4 +331,40 @@ func retrieveAbstraction(paths openapi3.Paths) AbstractionData {
 		Name:        "Service",
 		Methods:     methodsWithParam,
 	}
+}
+
+func retrieveHTTPDeliveryData(paths openapi3.Paths) map[string]HTTPMethods {
+	httpMethods := map[string]HTTPMethods{}
+	for key, item := range paths {
+		if item.Get != nil {
+			name := item.Get.OperationID
+			params := Attributes{}
+			returnValues := Attributes{}
+			for code, resp := range item.Get.Responses {
+				if code == "200" {
+					t := getType(resp.Value.Content.Get("application/json").Schema)
+					returnValues = append(returnValues, Attribute{
+						Type: t,
+					})
+				}
+			}
+			for _, parameter := range item.Get.Parameters {
+				params = append(params, Attribute{
+					Name: parameter.Value.Name,
+					Type: getType(parameter.Value.Schema),
+				})
+			}
+
+			h := HTTPMethods{
+				Path:        key,
+				MethodsName: "GET",
+				Data: ListOfAttributes{
+					Attributes:  params,
+					ReturnValue: returnValues,
+				},
+			}
+			httpMethods[name] = h
+		}
+	}
+	return httpMethods
 }

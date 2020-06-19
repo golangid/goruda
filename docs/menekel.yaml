@@ -5,7 +5,7 @@ info:
   license:
     name: MIT
 servers:
-  - url: http://menekel.swagger.io/v1
+  - url: delivery://menekel.swagger.io/v1
 paths:
   /article:
     get:
