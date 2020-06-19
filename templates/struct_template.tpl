@@ -16,7 +16,7 @@ import (
 )
 {{ end }}
 
-{{ if .IsStructPolymorph }}
+{{ if .IsPolymorph }}
  type {{.StructName}} struct {
 {{ else }}
  type {{.StructName | camelcase}} struct {
@@ -26,7 +26,7 @@ import (
 	{{ end -}}
 }
 {{ $structName := .StructName }}
-{{ if .IsStructPolymorph }}
+{{ if .IsPolymorph }}
 	{{- range $key, $val := .Attributes }}
 		{{ if ne $val.Name "" }}
 			func (p {{ $structName }}) To{{ $val.Type }}() {{$val.Type}} {

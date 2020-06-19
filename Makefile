@@ -1,7 +1,12 @@
 .PHONY: dependency unittest test
+BINARY=goruda
+
+build: dependency
+	go build -o ${BINARY} github.com/golangid/goruda/cmd/goruda
 
 dependency:
-	@go get -v ./...
+	@echo "Installing dependency"
+	@go mod vendor
 
 test:
 	@go test -v ./...

@@ -19,26 +19,31 @@ const (
 	gorudaPacakages = "github.com/golangid/goruda"
 )
 
-func Generate(swaggerFile string) error {
-	swagger := LoadSwaggerFile(swaggerFile)
-	return generateStructs(swagger)
+type Goruda struct {
+	PackageName     string
+	TargetDirectory string
 }
 
-func generateStructs(swagger *openapi3.Swagger) error {
+func (g Goruda) Generate(swaggerFile string) error {
+	swagger := LoadSwaggerFile(swaggerFile)
+	return g.generateStructs(swagger)
+}
+
+func (g Goruda) generateStructs(swagger *openapi3.Swagger) error {
 	for k, v := range swagger.Components.Schemas {
 		t := v.Value.Type
 		switch t {
 		case "object":
-			if err := generateStruct(k, v); err != nil {
+			if err := g.generateStruct(k, v); err != nil {
 				return err
 			}
 		case "array":
-			if err := generateStruct(k, v); err != nil {
+			if err := g.generateStruct(k, v); err != nil {
 				return err
 			}
 		default:
 			if len(v.Value.Properties) > 0 {
-				if err := generateStruct(k, v); err != nil {
+				if err := g.generateStruct(k, v); err != nil {
 					return err
 				}
 				continue
@@ -47,68 +52,51 @@ func generateStructs(swagger *openapi3.Swagger) error {
 
 	}
 
-	if err := generateServiceFile(retrieveAbstraction(swagger.Paths)); err != nil {
+	if err := g.generateServiceFile(g.retrieveAbstraction(swagger.Paths)); err != nil {
 		return err
 	}
 
 	if err := generateHTTPDeliveryFile(HTTPData{
 		TimeStamp:   time.Now(),
-		PackageName: "domain",
+		PackageName: g.PackageName,
 		ServiceName: "Service",
-		Methods:     retrieveHTTPDeliveryData(swagger.Paths),
+		Methods:     g.retrieveHTTPDeliveryData(swagger.Paths),
 	}); err != nil {
 		return err
 	}
 	return nil
 }
 
-func getType(schema *openapi3.SchemaRef, schemaTitle ...string) string {
+// this function return schema type and bool status for polymorphism
+func (g Goruda) getType(schema *openapi3.SchemaRef, schemaTitle ...string) (string, bool) {
 	if schema.Ref != "" {
-		return strings.Split(schema.Ref, "/")[3]
+		return strings.Split(schema.Ref, "/")[3], false
 	}
 	if (len(schema.Value.OneOf) > 0 ||
 		len(schema.Value.AnyOf) > 0 ||
 		len(schema.Value.AllOf) > 0) && len(schemaTitle) > 0 {
-		var attributes []Attribute
 
 		if len(schema.Value.OneOf) > 0 {
-			for _, ref := range schema.Value.OneOf {
-				if ref.Ref == "" {
-					firstLetter := ref.Value.Type[0]
-					attributes = append(attributes, Attribute{
-						Name: strings.ToUpper(string(firstLetter)) + ref.Value.Type[1:],
-						Type: ref.Value.Type,
-					})
-					continue
-				}
-				attributes = append(attributes, Attribute{
-					Name: "",
-					Type: strings.Split(ref.Ref, "/")[3],
-				})
-			}
-			TypeName := fmt.Sprintf("ChildOf%v", schemaTitle[0])
-			if err := generatePolymorphStruct(TypeName, attributes); err != nil {
-				return "interface{}"
-			}
+			return fmt.Sprintf("ChildOf%v", schemaTitle[0]), true
 		}
 
-		return "interface{}"
+		return "interface{}", false
 	}
 
 	switch schema.Value.Type {
 	case "integer":
 		if schema.Value.Format != "" {
-			return schema.Value.Format
+			return schema.Value.Format, false
 		}
-		return "int"
+		return "int", false
 	case "string":
 		if format := schema.Value.Format; format != "" {
 			switch format {
 			case "date-time", "date":
-				return "time.Time"
+				return "time.Time", false
 			}
 		}
-		return "string"
+		return "string", false
 	case "object":
 		// TODO: (by bxcodec)
 		// This section temporary I just send map[string]interface{}
@@ -129,49 +117,73 @@ func getType(schema *openapi3.SchemaRef, schemaTitle ...string) string {
 		// If it important to have as a struct it must defined using `$ref` then.
 		// But I'm a bit confused to use between interface{} or explicitly using map[string]interface{} will decide later
 		// after a real test
-		return "map[string]interface{}"
+		return "map[string]interface{}", false
 	case "array":
 		if items := schema.Value.Items; items != nil {
-			return fmt.Sprintf("[]%s", getType(items))
+			schemaType, _ := g.getType(items)
+			return fmt.Sprintf("[]%s", schemaType), false
 		}
 		// TODO: (by bxcodec)
 		// Add Specific conditions for array of objects
 	}
-	return schema.Value.Type
+	return schema.Value.Type, false
 }
 
-func generateStruct(name string, schema *openapi3.SchemaRef) error {
+func (g Goruda) generateStruct(name string, schema *openapi3.SchemaRef) error {
 	dmData := DomainData{
 		StructName:  name,
 		TimeStamp:   time.Now(),
-		Packagename: "domain",
+		Packagename: g.PackageName,
 	}
 	attributes := []Attribute{}
 	imports := map[string]Import{}
 	for k, v := range schema.Value.Properties {
+		schemType, isPolymorph := g.getType(v, name)
+		if isPolymorph {
+			if err := g.generatePolymorphStruct(schemType, v); err != nil {
+				return err
+			}
+		}
 		att := Attribute{
 			Name: k,
-			Type: getType(v, name),
+			Type: schemType,
 		}
-		setImports(getType(v), imports)
+		setImports(schemType, imports)
 		attributes = append(attributes, att)
 	}
 	dmData.Attributes = attributes
 	dmData.Imports = imports
-	return generateFile(dmData)
+	return g.generateFile(dmData)
 }
 
-func generatePolymorphStruct(name string, children []Attribute) error {
+func (g Goruda) generatePolymorphStruct(name string, schema *openapi3.SchemaRef) error {
+	attributes := []Attribute{}
+	for _, ref := range schema.Value.OneOf {
+		if ref.Ref == "" {
+			firstLetter := ref.Value.Type[0]
+			attributes = append(attributes, Attribute{
+				Name: strings.ToUpper(string(firstLetter)) + ref.Value.Type[1:],
+				Type: ref.Value.Type,
+			})
+			continue
+		}
+		attributes = append(attributes, Attribute{
+			Name: "",
+			Type: strings.Split(ref.Ref, "/")[3],
+		})
+	}
+
 	dmData := DomainData{
 		StructName:  name,
 		TimeStamp:   time.Now(),
-		Packagename: "domain",
+		Packagename: g.PackageName,
+		IsPolymorph: true,
 	}
 
 	imports := map[string]Import{}
-	dmData.Attributes = children
+	dmData.Attributes = attributes
 	dmData.Imports = imports
-	return generateFile(dmData)
+	return g.generateFile(dmData)
 }
 
 func setImports(dataType string, imports map[string]Import) {
@@ -184,7 +196,7 @@ func setImports(dataType string, imports map[string]Import) {
 	}
 }
 
-func generateStructFile(data DomainData) error {
+func (g Goruda) generateStructFile(data DomainData) error {
 	box := packr.NewBox("./templates")
 	str, err := box.FindString("struct_template.tpl")
 	if err != nil {
@@ -195,13 +207,13 @@ func generateStructFile(data DomainData) error {
 		return err
 	}
 
-	if _, err := os.Stat("generated"); os.IsNotExist(err) {
-		if err = os.Mkdir("generated", os.ModePerm); err != nil {
+	if _, err := os.Stat(g.TargetDirectory); os.IsNotExist(err) {
+		if err = os.Mkdir(g.TargetDirectory, os.ModePerm); err != nil {
 			return err
 		}
 	}
 
-	file, err := os.Create("generated/" + data.StructName + ".go")
+	file, err := os.Create(g.TargetDirectory + "/" + data.StructName + ".go")
 	if err != nil {
 		return err
 	}
@@ -225,7 +237,7 @@ func generateStructFile(data DomainData) error {
 	return nil
 }
 
-func generateServiceFile(data AbstractionData) error {
+func (g Goruda) generateServiceFile(data AbstractionData) error {
 	box := packr.NewBox("./templates")
 	str, err := box.FindString("service_template.tpl")
 	if err != nil {
@@ -236,13 +248,31 @@ func generateServiceFile(data AbstractionData) error {
 		return err
 	}
 
-	if _, err := os.Stat("generated"); os.IsNotExist(err) {
-		if err = os.Mkdir("generated", os.ModePerm); err != nil {
+	if _, err := os.Stat(g.TargetDirectory); os.IsNotExist(err) {
+		if err = os.Mkdir(g.TargetDirectory, os.ModePerm); err != nil {
 			return err
 		}
 	}
 
-	file, err := os.Create("generated/" + data.Name + ".go")
+	file, err := os.Create(g.TargetDirectory + "/" + data.Name + ".go")
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	if err = tmpl.Execute(file, data); err != nil {
+		return err
+	}
+
+	str, err = box.FindString("service_test_template.tpl")
+	if err != nil {
+		return err
+	}
+	tmpl, err = template.New("service_test_template").Funcs(sprig.TxtFuncMap()).Parse(str)
+	if err != nil {
+		return err
+	}
+
+	file, err = os.Create("generated/" + data.Name + "_test.go")
 	if err != nil {
 		return err
 	}
@@ -281,8 +311,8 @@ func generateHTTPDeliveryFile(data HTTPData) error {
 	return nil
 }
 
-func generateFile(data DomainData) error {
-	if err := generateStructFile(data); err != nil {
+func (g Goruda) generateFile(data DomainData) error {
+	if err := g.generateStructFile(data); err != nil {
 		return err
 	}
 	// TODO: (by bxcodec)
@@ -290,7 +320,7 @@ func generateFile(data DomainData) error {
 	return nil
 }
 
-func retrieveAbstraction(paths openapi3.Paths) AbstractionData {
+func (g Goruda) retrieveAbstraction(paths openapi3.Paths) AbstractionData {
 	methodsWithParam := map[string]ListOfAttributes{}
 	for _, item := range paths {
 		if item.Get != nil {
@@ -299,13 +329,14 @@ func retrieveAbstraction(paths openapi3.Paths) AbstractionData {
 			returnValues := Attributes{}
 			for code, resp := range item.Get.Responses {
 				if code == "200" {
-					t := getType(resp.Value.Content.Get("application/json").Schema)
+					t, _ := g.getType(resp.Value.Content.Get("application/json").Schema)
 					returnValues = append(returnValues, Attribute{
 						Type: t,
 					})
 				}
 			}
 			for _, parameter := range item.Get.Parameters {
+				schemaType, _ := g.getType(parameter.Value.Schema)
 				isRequired := false
 				switch parameter.Value.In {
 				case "path":
@@ -314,7 +345,7 @@ func retrieveAbstraction(paths openapi3.Paths) AbstractionData {
 				}
 				params = append(params, Attribute{
 					Name:       parameter.Value.Name,
-					Type:       getType(parameter.Value.Schema),
+					Type:       schemaType,
 					IsRequired: isRequired,
 				})
 			}
@@ -327,13 +358,13 @@ func retrieveAbstraction(paths openapi3.Paths) AbstractionData {
 	}
 
 	return AbstractionData{
-		PackageName: "domain",
+		PackageName: g.PackageName,
 		Name:        "Service",
 		Methods:     methodsWithParam,
 	}
 }
 
-func retrieveHTTPDeliveryData(paths openapi3.Paths) map[string]HTTPMethods {
+func (g Goruda) retrieveHTTPDeliveryData(paths openapi3.Paths) map[string]HTTPMethods {
 	httpMethods := map[string]HTTPMethods{}
 	for key, item := range paths {
 		if item.Get != nil {
@@ -342,16 +373,17 @@ func retrieveHTTPDeliveryData(paths openapi3.Paths) map[string]HTTPMethods {
 			returnValues := Attributes{}
 			for code, resp := range item.Get.Responses {
 				if code == "200" {
-					t := getType(resp.Value.Content.Get("application/json").Schema)
+					t, _ := g.getType(resp.Value.Content.Get("application/json").Schema)
 					returnValues = append(returnValues, Attribute{
 						Type: t,
 					})
 				}
 			}
 			for _, parameter := range item.Get.Parameters {
+				schemaType, _ := g.getType(parameter.Value.Schema)
 				params = append(params, Attribute{
 					Name: parameter.Value.Name,
-					Type: getType(parameter.Value.Schema),
+					Type: schemaType,
 				})
 			}
 
