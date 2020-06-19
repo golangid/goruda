@@ -20,4 +20,4 @@ import (
 	{{ range $i,$att :=  .Attributes -}}
 	 {{  $att.Name | camelcase }}  {{$att.Type}}  `json:"{{$att.Name | snakecase}}"`
 	{{ end -}}
-} 
+}
