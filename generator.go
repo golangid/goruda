@@ -1,13 +1,16 @@
 package goruda
 
 import (
+	"bytes"
 	"fmt"
-	"github.com/Masterminds/sprig"
-	"github.com/gobuffalo/packr"
+	"go/format"
 	"os"
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/Masterminds/sprig"
+	"github.com/gobuffalo/packr"
 
 	"github.com/getkin/kin-openapi/openapi3"
 )
@@ -157,7 +160,20 @@ func generateStructFile(data DomainData) error {
 		return err
 	}
 	defer file.Close()
-	if err = tmpl.Execute(file, data); err != nil {
+
+	var buf bytes.Buffer
+
+	if err = tmpl.Execute(&buf, data); err != nil {
+		return err
+	}
+
+	formattedString, err := format.Source(buf.Bytes())
+	if err != nil {
+		return err
+	}
+
+	_, err = file.WriteString(string(formattedString))
+	if err != nil {
 		return err
 	}
 	return nil
