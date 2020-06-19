@@ -6,7 +6,7 @@ package {{.PackageName}}
 
 type {{ .Name }} interface {
 	{{ range $key, $val := .Methods }}
-		{{ $key | camelcase }}({{ range $index, $element := $val.Attributes }}{{ $element.Name }} {{ $element.Type }}{{ if ne $index $val.Attributes.GetLastIndex }},{{ end }}{{ end }})
+		{{ $key | camelcase }}({{ range $index, $element := $val.Attributes }}{{ $element.Name }} {{ $element.Type }}{{ if ne $index $val.Attributes.GetLastIndex }},{{ end }}{{ end }}) ({{ range $index, $element := .ReturnValue }}{{ $element.Type }}{{ if ne $index $val.ReturnValue.GetLastIndex }},{{ end }}{{ end }}, error)
 	{{ end }}
 }
 {{ $receiverName := print .Name "Implementation" }}
