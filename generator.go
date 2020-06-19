@@ -104,7 +104,6 @@ func getType(schema *openapi3.SchemaRef) string {
 		return "map[string]interface{}"
 	case "array":
 		if items := schema.Value.Items; items != nil {
-			fmt.Println("array: ", fmt.Sprintf("[]%s", getType(items)))
 			return fmt.Sprintf("[]%s", getType(items))
 		}
 		// TODO: (by bxcodec)
