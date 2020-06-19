@@ -51,19 +51,36 @@ func generateStructs(swagger *openapi3.Swagger) error {
 	return nil
 }
 
-func getType(schema *openapi3.SchemaRef) string {
+func getType(schema *openapi3.SchemaRef, schemaTitle ...string) string {
 	if schema.Ref != "" {
 		return strings.Split(schema.Ref, "/")[3]
 	}
-	if len(schema.Value.OneOf) > 0 ||
+	if (len(schema.Value.OneOf) > 0 ||
 		len(schema.Value.AnyOf) > 0 ||
-		len(schema.Value.AllOf) > 0 {
-		// TODO: (by bxcodec)
-		// It's hard to define if it comes to this kind of data:
-		//  - oneOf
-		//  - allOf
-		//  - anyOf
-		// Just return an plain interface{} let the developer decide later what should it best to this data types
+		len(schema.Value.AllOf) > 0) && len(schemaTitle) > 0 {
+		var attributes []Attribute
+
+		if len(schema.Value.OneOf) > 0 {
+			for _, ref := range schema.Value.OneOf {
+				if ref.Ref == "" {
+					firstLetter := ref.Value.Type[0]
+					attributes = append(attributes, Attribute{
+						Name: strings.ToUpper(string(firstLetter)) + ref.Value.Type[1:],
+						Type: ref.Value.Type,
+					})
+					continue
+				}
+				attributes = append(attributes, Attribute{
+					Name: "",
+					Type: strings.Split(ref.Ref, "/")[3],
+				})
+			}
+			TypeName := fmt.Sprintf("ChildOf%v", schemaTitle[0])
+			if err := generatePolymorphStruct(TypeName, attributes); err != nil {
+				return "interface{}"
+			}
+		}
+
 		return "interface{}"
 	}
 
@@ -123,12 +140,25 @@ func generateStruct(name string, schema *openapi3.SchemaRef) error {
 	for k, v := range schema.Value.Properties {
 		att := Attribute{
 			Name: k,
-			Type: getType(v),
+			Type: getType(v, name),
 		}
 		setImports(getType(v), imports)
 		attributes = append(attributes, att)
 	}
 	dmData.Attributes = attributes
+	dmData.Imports = imports
+	return generateFile(dmData)
+}
+
+func generatePolymorphStruct(name string, children []Attribute) error {
+	dmData := DomainData{
+		StructName:  name,
+		TimeStamp:   time.Now(),
+		Packagename: "domain",
+	}
+
+	imports := map[string]Import{}
+	dmData.Attributes = children
 	dmData.Imports = imports
 	return generateFile(dmData)
 }

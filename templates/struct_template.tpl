@@ -16,8 +16,26 @@ import (
 )
 {{ end }}
 
+{{ if .IsStructPolymorph }}
+ type {{.StructName}} struct {
+{{ else }}
  type {{.StructName | camelcase}} struct {
+{{ end }}
 	{{ range $i,$att :=  .Attributes -}}
 	 {{  $att.Name | camelcase }}  {{$att.Type}}  `json:"{{$att.Name | snakecase}}"`
 	{{ end -}}
 }
+{{ $structName := .StructName }}
+{{ if .IsStructPolymorph }}
+	{{- range $key, $val := .Attributes }}
+		{{ if ne $val.Name "" }}
+			func (p {{ $structName }}) To{{ $val.Type }}() {{$val.Type}} {
+				return p.{{ $val.Name }}
+			}
+		{{ else }}
+			func (p {{ $structName }}) To{{ $val.Type }}() {{$val.Type}} {
+				return p.{{ $val.Type }}
+			}
+		{{ end }}
+	{{- end }}
+{{ end }}

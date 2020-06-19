@@ -12,6 +12,15 @@ type DomainData struct {
 	Packagename string
 }
 
+func (d DomainData) IsStructPolymorph() bool {
+	for _, attribute := range d.Attributes {
+		if attribute.Name == "" {
+			return true
+		}
+	}
+	return false
+}
+
 type Import struct {
 	Alias string
 	Path  string
