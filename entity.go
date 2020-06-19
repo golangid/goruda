@@ -1,6 +1,8 @@
 package goruda
 
-import "time"
+import (
+	"time"
+)
 
 type DomainData struct {
 	StructName  string
@@ -18,4 +20,25 @@ type Import struct {
 type Attribute struct {
 	Name string
 	Type string
+}
+
+type ListOfAttributes struct {
+	Attributes  Attributes
+	ReturnValue Attributes
+}
+
+type Attributes []Attribute
+
+func (l Attributes) GetLastIndex() int {
+	if len(l) < 1 {
+		return 0
+	}
+	return len(l) - 1
+}
+
+type AbstractionData struct {
+	TimeStamp   time.Time
+	PackageName string
+	Name        string
+	Methods     map[string]ListOfAttributes
 }

@@ -2,12 +2,13 @@ package goruda
 
 import (
 	"fmt"
-	"github.com/Masterminds/sprig"
-	"github.com/gobuffalo/packr"
 	"os"
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/Masterminds/sprig"
+	"github.com/gobuffalo/packr"
 
 	"github.com/getkin/kin-openapi/openapi3"
 )
@@ -22,11 +23,14 @@ func Generate(swaggerFile string) error {
 }
 
 func generateStructs(swagger *openapi3.Swagger) error {
-
 	for k, v := range swagger.Components.Schemas {
 		t := v.Value.Type
 		switch t {
 		case "object":
+			if err := generateStruct(k, v); err != nil {
+				return err
+			}
+		case "array":
 			if err := generateStruct(k, v); err != nil {
 				return err
 			}
@@ -39,6 +43,10 @@ func generateStructs(swagger *openapi3.Swagger) error {
 			}
 		}
 
+	}
+
+	if err := generateServiceFile(retrieveAbstraction(swagger.Paths)); err != nil {
+		return err
 	}
 	return nil
 }
@@ -96,6 +104,7 @@ func getType(schema *openapi3.SchemaRef) string {
 		return "map[string]interface{}"
 	case "array":
 		if items := schema.Value.Items; items != nil {
+			fmt.Println("array: ", fmt.Sprintf("[]%s", getType(items)))
 			return fmt.Sprintf("[]%s", getType(items))
 		}
 		// TODO: (by bxcodec)
@@ -163,6 +172,34 @@ func generateStructFile(data DomainData) error {
 	return nil
 }
 
+func generateServiceFile(data AbstractionData) error {
+	box := packr.NewBox("./templates")
+	str, err := box.FindString("service_template.tpl")
+	if err != nil {
+		return err
+	}
+	tmpl, err := template.New("service_template").Funcs(sprig.TxtFuncMap()).Parse(str)
+	if err != nil {
+		return err
+	}
+
+	if _, err := os.Stat("generated"); os.IsNotExist(err) {
+		if err = os.Mkdir("generated", os.ModePerm); err != nil {
+			return err
+		}
+	}
+
+	file, err := os.Create("generated/" + data.Name + ".go")
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	if err = tmpl.Execute(file, data); err != nil {
+		return err
+	}
+	return nil
+}
+
 func generateFile(data DomainData) error {
 	if err := generateStructFile(data); err != nil {
 		return err
@@ -170,4 +207,40 @@ func generateFile(data DomainData) error {
 	// TODO: (by bxcodec)
 	// Another generation will place here
 	return nil
+}
+
+func retrieveAbstraction(paths openapi3.Paths) AbstractionData {
+	methodsWithParam := map[string]ListOfAttributes{}
+	for _, item := range paths {
+		if item.Get != nil {
+			name := item.Get.OperationID
+			params := Attributes{}
+			returnValues := Attributes{}
+			for code, resp := range item.Get.Responses {
+				if code == "200" {
+					t := getType(resp.Value.Content.Get("application/json").Schema)
+					returnValues = append(returnValues, Attribute{
+						Type: t,
+					})
+				}
+			}
+			for _, parameter := range item.Get.Parameters {
+				params = append(params, Attribute{
+					Name: parameter.Value.Name,
+					Type: getType(parameter.Value.Schema),
+				})
+			}
+
+			methodsWithParam[name] = ListOfAttributes{
+				Attributes:  params,
+				ReturnValue: returnValues,
+			}
+		}
+	}
+
+	return AbstractionData{
+		PackageName: "domain",
+		Name:        "Service",
+		Methods:     methodsWithParam,
+	}
 }
