@@ -78,12 +78,12 @@ paths:
         - name: articleId
           in: path
           required: true
-          description: The id of the article to retrieve
+          description: The id of the article to delete
           schema:
             type: string
       responses:
         '204':
-          description: Expected response to a valid request
+          description: Expected response when deleting article is success
         default:
           description: unexpected error
           content:
