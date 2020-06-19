@@ -10,15 +10,7 @@ type DomainData struct {
 	Attributes  []Attribute
 	Imports     map[string]Import
 	Packagename string
-}
-
-func (d DomainData) IsStructPolymorph() bool {
-	for _, attribute := range d.Attributes {
-		if attribute.Name == "" {
-			return true
-		}
-	}
-	return false
+	IsPolymorph bool
 }
 
 type Import struct {

@@ -7,7 +7,9 @@ import (
 )
 
 var (
-	generatorCMD = &cobra.Command{
+	packageName          = ""
+	pathToGeneratedFiles = ""
+	generatorCMD         = &cobra.Command{
 		Use:   "generate",
 		Short: "Generate API based on inserted openapi argument.",
 		Long:  "Use generate xxx.yaml to generate the API package",
@@ -17,8 +19,16 @@ var (
 			}
 			logrus.Debugf("processed documentation %v", args)
 
+			if pathToGeneratedFiles == "" {
+				pathToGeneratedFiles = "generated"
+			}
+
 			for _, arg := range args {
-				if err := goruda.Generate(arg); err != nil {
+				gen := goruda.Goruda{
+					PackageName:     packageName,
+					TargetDirectory: pathToGeneratedFiles,
+				}
+				if err := gen.Generate(arg); err != nil {
 					logrus.Fatalf("error generate API: %v", err)
 				}
 			}

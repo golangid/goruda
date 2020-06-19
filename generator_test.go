@@ -7,7 +7,11 @@ import (
 )
 
 func TestGenerateStruct(t *testing.T) {
-	err := goruda.Generate("./docs/menekel.yaml")
+	gen := goruda.Goruda{
+		PackageName:     "domain",
+		TargetDirectory: "generated",
+	}
+	err := gen.Generate("./docs/menekel.yaml")
 	if err != nil {
 		t.Error(err)
 	}
