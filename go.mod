@@ -1,5 +1,7 @@
 module github.com/golangid/goruda
 
+go 1.14
+
 require (
 	github.com/Masterminds/sprig v2.17.1+incompatible
 	github.com/aokoli/goutils v1.1.0 // indirect
