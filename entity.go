@@ -12,6 +12,11 @@ type DomainData struct {
 	Imports     map[string]Import
 	Packagename string
 	IsPolymorph bool
+	SliceData   SliceData
+}
+
+type SliceData struct {
+	Type string
 }
 
 type Import struct {
