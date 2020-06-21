@@ -7,7 +7,7 @@ package delivery
 import (
 	"net/http"
 	{{ .PackageName }} "github.com/golangid/goruda/generated"
-	"github.com/labstack/echo"
+	"github.com/labstack/echo/v4"
 	"strconv"
 )
 {{ $packageName := .PackageName }}{{ $implementationName := print .ServiceName "Implementation" }}{{ $serviceName := .ServiceName }}
