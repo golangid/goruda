@@ -19,6 +19,8 @@ func (h httpHandler) {{ $key }}(c echo.Context) error {
 	{{- range $index, $element := $val.Data.Attributes }}
 	{{ if $element.IsRequired }}
 	fromRequest{{ $index }} := c.Param("{{ $element.Name }}")
+	{{ else if $element.IsCustomType }}
+	fromRequest{{ $index }} := {{ $packageName }}.{{ $element.Type }}{}
 	{{ else }}
 	fromRequest{{ $index }} := c.QueryParam("{{ $element.Name }}")
 	{{ end }}
@@ -35,11 +37,15 @@ func (h httpHandler) {{ $key }}(c echo.Context) error {
 	{{ else }}input{{$index}} := fromRequest{{$index}}
 	{{ end }}
 	{{- end }}
-	result, err := h.service.{{ $key | camelcase }}({{ range $index, $element := $val.Data.Attributes }}{{ if ne $element.GetBitNumber "" }}int{{$element.GetBitNumber}}(input{{$index}}){{ if ne $index $val.Data.Attributes.GetLastIndex }},{{ end }}{{ else }}input{{$index}}{{ if ne $index $val.Data.Attributes.GetLastIndex }},{{ end }}{{ end }}{{ end }})
+	{{ if gt (len $val.Data.ReturnValue) 0 }}{{ range $index, $element := $val.Data.ReturnValue }}result{{ $index }}{{ if ne $index $val.Data.ReturnValue.GetLastIndex }},{{ end }}{{ end }},{{end}} err := h.service.{{ $key | camelcase }}({{ range $index, $element := $val.Data.Attributes }}{{ if ne $element.GetBitNumber "" }}int{{$element.GetBitNumber}}(input{{$index}}){{ if ne $index $val.Data.Attributes.GetLastIndex }},{{ end }}{{ else }}input{{$index}}{{ if ne $index $val.Data.Attributes.GetLastIndex }},{{ end }}{{ end }}{{ end }})
 	if err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, result)
+	{{ if gt (len $val.Data.ReturnValue) 0 }}
+	return c.JSON(http.StatusOK, result0)
+	{{ else }}
+	return c.NoContent(http.StatusNoContent)
+	{{ end }}
 }
 {{ end }}
 

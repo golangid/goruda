@@ -56,7 +56,7 @@ func (g Goruda) generateStructs(swagger *openapi3.Swagger) error {
 		return err
 	}
 
-	if err := generateHTTPDeliveryFile(HTTPData{
+	if err := g.generateHTTPDeliveryFile(HTTPData{
 		TimeStamp:   time.Now(),
 		PackageName: g.PackageName,
 		ServiceName: "Service",
@@ -307,7 +307,7 @@ func (g Goruda) generateServiceFile(data AbstractionData) error {
 	return nil
 }
 
-func generateHTTPDeliveryFile(data HTTPData) error {
+func (g Goruda) generateHTTPDeliveryFile(data HTTPData) error {
 	box := packr.NewBox("./templates")
 	str, err := box.FindString("delivery_http_template.tpl")
 	if err != nil {
@@ -523,6 +523,115 @@ func (g Goruda) retrieveHTTPDeliveryData(paths openapi3.Paths) map[string]HTTPMe
 				},
 			}
 			httpMethods[name] = h
+		}
+
+		if item.Post != nil {
+			name := item.Post.OperationID
+			params := Attributes{}
+			returnValues := Attributes{}
+			for code, resp := range item.Post.Responses {
+				if code == "201" {
+					t, _ := g.getType(resp.Value.Content.Get("application/json").Schema)
+					returnValues = append(returnValues, Attribute{
+						Type: t,
+					})
+				}
+			}
+
+			schemaType, _ := g.getType(item.Post.RequestBody.Value.Content.
+				Get("application/json").Schema)
+			firstLetter := schemaType[0]
+			params = append(params, Attribute{
+				Name: strings.ToLower(string(firstLetter)) + schemaType[1:],
+				Type: schemaType,
+			})
+
+			httpMethods[name] = HTTPMethods{
+				Path: key,
+				MethodsName: "POST",
+				Data: ListOfAttributes{
+					Attributes:  params,
+					ReturnValue: returnValues,
+				},
+			}
+		}
+
+		if item.Put != nil {
+			name := item.Put.OperationID
+			params := Attributes{}
+			returnValues := Attributes{}
+			for code, resp := range item.Put.Responses {
+				if code == "200" {
+					t, _ := g.getType(resp.Value.Content.Get("application/json").Schema)
+					returnValues = append(returnValues, Attribute{
+						Type: t,
+					})
+				}
+			}
+
+			for _, parameter := range item.Put.Parameters {
+				schemaType, _ := g.getType(parameter.Value.Schema)
+				isRequired := false
+				switch parameter.Value.In {
+				case "path":
+					isRequired = true
+				case "query":
+				}
+				params = append(params, Attribute{
+					Name:       parameter.Value.Name,
+					Type:       schemaType,
+					IsRequired: isRequired,
+				})
+			}
+
+			schemaType, _ := g.getType(item.Put.RequestBody.Value.Content.
+				Get("application/json").Schema)
+			firstLetter := schemaType[0]
+			params = append(params, Attribute{
+				Name: strings.ToLower(string(firstLetter)) + schemaType[1:],
+				Type: schemaType,
+			})
+
+			httpMethods[name] = HTTPMethods{
+				Path:        key,
+				MethodsName: "PUT",
+				Data:        ListOfAttributes{
+					Attributes:  params,
+					ReturnValue: returnValues,
+				},
+			}
+		}
+
+		if item.Delete != nil {
+			name := item.Delete.OperationID
+			params := Attributes{}
+			returnValues := Attributes{}
+			for code, resp := range item.Delete.Responses {
+				switch code {
+				case "404":
+					t, _ := g.getType(resp.Value.Content.Get("application/json").Schema)
+					returnValues = append(returnValues, Attribute{
+						Type: t,
+					})
+				case "204":
+				}
+			}
+			for _, parameter := range item.Delete.Parameters {
+				schemaType, _ := g.getType(parameter.Value.Schema)
+				params = append(params, Attribute{
+					Name: parameter.Value.Name,
+					Type: schemaType,
+				})
+			}
+
+			httpMethods[name] = HTTPMethods{
+				Path:        key,
+				MethodsName: "DELETE",
+				Data:        ListOfAttributes{
+					Attributes:  params,
+					ReturnValue: returnValues,
+				},
+			}
 		}
 	}
 	return httpMethods
