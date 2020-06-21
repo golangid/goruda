@@ -21,6 +21,14 @@ func (h httpHandler) {{ $key }}(c echo.Context) error {
 	fromRequest{{ $index }} := c.Param("{{ $element.Name }}")
 	{{ else if $element.IsCustomType }}
 	fromRequest{{ $index }} := {{ $packageName }}.{{ $element.Type }}{}
+	if err := c.Bind(&fromRequest{{ $index }}); err != nil {
+		return err
+	}
+	{{ else if eq $element.Type "map[string]interface{}" }}
+	fromRequest{{ $index }} := map[string]interface{}{}
+	if err := c.Bind(&fromRequest{{ $index }}); err != nil {
+		return err
+	}
 	{{ else }}
 	fromRequest{{ $index }} := c.QueryParam("{{ $element.Name }}")
 	{{ end }}
