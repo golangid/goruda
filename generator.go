@@ -26,7 +26,14 @@ type Goruda struct {
 
 func (g Goruda) Generate(swaggerFile string) error {
 	swagger := LoadSwaggerFile(swaggerFile)
-	return g.generateStructs(swagger)
+	if err := g.generateStructs(swagger); err != nil {
+		return err
+	}
+
+	if err := g.generateCommandPackage(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (g Goruda) generateStructs(swagger *openapi3.Swagger) error {
@@ -336,6 +343,58 @@ func generateHTTPDeliveryFile(data HTTPData) error {
 	}
 	defer file.Close()
 	if err = tmpl.Execute(file, data); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (g Goruda) generateCommandPackage() error {
+	box := packr.NewBox("./templates")
+	str, err := box.FindString("command_template.tpl")
+	if err != nil {
+		return err
+	}
+	tmpl, err := template.New("command_template").Funcs(sprig.TxtFuncMap()).Parse(str)
+	if err != nil {
+		return err
+	}
+
+	if _, err := os.Stat(g.TargetDirectory + "/cmd"); os.IsNotExist(err) {
+		if err = os.Mkdir(g.TargetDirectory + "/cmd", os.ModePerm); err != nil {
+			return err
+		}
+	}
+
+	if _, err := os.Stat(g.TargetDirectory + "/cmd/" + g.PackageName); os.IsNotExist(err) {
+		if err = os.Mkdir(g.TargetDirectory + "/cmd/" + g.PackageName, os.ModePerm); err != nil {
+			return err
+		}
+	}
+
+	file, err := os.Create(g.TargetDirectory + "/cmd/command.go")
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	if err = tmpl.Execute(file, g); err != nil {
+		return err
+	}
+
+	str, err = box.FindString("main_function_template.tpl")
+	if err != nil {
+		return err
+	}
+	tmpl, err = template.New("main_function_template").Funcs(sprig.TxtFuncMap()).Parse(str)
+	if err != nil {
+		return err
+	}
+
+	file, err = os.Create(g.TargetDirectory + "/cmd/" + g.PackageName + "/main.go")
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	if err = tmpl.Execute(file, g); err != nil {
 		return err
 	}
 	return nil
