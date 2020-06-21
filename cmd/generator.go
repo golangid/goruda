@@ -23,6 +23,10 @@ var (
 				pathToGeneratedFiles = "generated"
 			}
 
+			if packageName == "" {
+				packageName = "domain"
+			}
+
 			for _, arg := range args {
 				gen := goruda.Goruda{
 					PackageName:     packageName,
