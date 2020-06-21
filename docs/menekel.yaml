@@ -69,6 +69,36 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
   /article/{articleId}:
+    put:
+      summary: Update an article
+      operationId: updateArticle
+      tags:
+        - article
+      parameters:
+        - name: articleId
+          in: path
+          required: true
+          description: The id of the article to update
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Article"
+      responses:
+        '200':
+          description: Updated Article response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Article"
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
     delete:
       summary: Delete certain article by ID
       operationId: deleteArticleById

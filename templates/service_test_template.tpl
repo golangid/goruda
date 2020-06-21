@@ -16,15 +16,21 @@ import (
 {{- range $key, $element := .Methods }}
 func Test{{ $implementationName }}_{{ $key | camelcase }}(t *testing.T) {
 	type output struct {
-	{{- range $index, $val := $element.ReturnValue }}
+	{{- range $index, $val := $element.ReturnValue }}{{ if $val.IsCustomType }}
 		result{{ $index }} {{ $packageName }}.{{$val.Type}}
+		{{ else }}
+		result{{ $index }} {{$val.Type}}
+		{{ end }}
 	{{- end }}
 		err     error
 	}
 
 	type input struct {
-	{{- range $index, $val := $element.Attributes }}
+	{{- range $index, $val := $element.Attributes }}{{ if $val.IsCustomType }}
+		input{{ $index }} {{ $packageName }}.{{$val.Type}}
+		{{ else }}
 		input{{ $index }} {{$val.Type}}
+		{{ end }}
 	{{- end }}
 	}
 	tests := []struct {
