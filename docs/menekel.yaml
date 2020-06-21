@@ -99,6 +99,27 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+    delete:
+      summary: Delete certain article by ID
+      operationId: deleteArticleById
+      tags:
+        - article
+      parameters:
+        - name: articleId
+          in: path
+          required: true
+          description: The id of the article to delete
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Expected response when deleting article is success
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
     get:
       summary: Info for a specific article
       operationId: showArticleById

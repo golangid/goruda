@@ -48,6 +48,14 @@ func (a Attribute) IsFloat() bool {
 	return false
 }
 
+func (a Attribute) IsCustomType() bool {
+	switch a.Type {
+	case "string", "int", "int32", "int64", "float", "float32", "float64", "interface{}", "map[string]interface{}":
+		return false
+	}
+	return true
+}
+
 type ListOfAttributes struct {
 	Attributes  Attributes
 	ReturnValue Attributes
