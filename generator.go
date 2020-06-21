@@ -55,6 +55,15 @@ func (g Goruda) generateStructs(swagger *openapi3.Swagger) error {
 	if err := g.generateServiceFile(g.retrieveAbstraction(swagger.Paths)); err != nil {
 		return err
 	}
+
+	if err := generateHTTPDeliveryFile(HTTPData{
+		TimeStamp:   time.Now(),
+		PackageName: g.PackageName,
+		ServiceName: "Service",
+		Methods:     g.retrieveHTTPDeliveryData(swagger.Paths),
+	}); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -274,6 +283,40 @@ func (g Goruda) generateServiceFile(data AbstractionData) error {
 	return nil
 }
 
+func generateHTTPDeliveryFile(data HTTPData) error {
+	box := packr.NewBox("./templates")
+	str, err := box.FindString("delivery_http_template.tpl")
+	if err != nil {
+		return err
+	}
+	tmpl, err := template.New("delivery_http_template").Funcs(sprig.TxtFuncMap()).Parse(str)
+	if err != nil {
+		return err
+	}
+
+	if _, err := os.Stat("generated/internal"); os.IsNotExist(err) {
+		if err = os.Mkdir("generated/internal", os.ModePerm); err != nil {
+			return err
+		}
+	}
+
+	if _, err := os.Stat("generated/internal/delivery"); os.IsNotExist(err) {
+		if err = os.Mkdir("generated/internal/delivery", os.ModePerm); err != nil {
+			return err
+		}
+	}
+
+	file, err := os.Create("generated/internal/delivery/http.go")
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	if err = tmpl.Execute(file, data); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (g Goruda) generateFile(data DomainData) error {
 	if err := g.generateStructFile(data); err != nil {
 		return err
@@ -300,11 +343,45 @@ func (g Goruda) retrieveAbstraction(paths openapi3.Paths) AbstractionData {
 			}
 			for _, parameter := range item.Get.Parameters {
 				schemaType, _ := g.getType(parameter.Value.Schema)
+				isRequired := false
+				switch parameter.Value.In {
+				case "path":
+					isRequired = true
+				case "query":
+				}
 				params = append(params, Attribute{
-					Name: parameter.Value.Name,
-					Type: schemaType,
+					Name:       parameter.Value.Name,
+					Type:       schemaType,
+					IsRequired: isRequired,
 				})
 			}
+
+			methodsWithParam[name] = ListOfAttributes{
+				Attributes:  params,
+				ReturnValue: returnValues,
+			}
+		}
+
+		if item.Post != nil {
+			name := item.Post.OperationID
+			params := Attributes{}
+			returnValues := Attributes{}
+			for code, resp := range item.Post.Responses {
+				if code == "201" {
+					t, _ := g.getType(resp.Value.Content.Get("application/json").Schema)
+					returnValues = append(returnValues, Attribute{
+						Type: t,
+					})
+				}
+			}
+
+			schemaType, _ := g.getType(item.Post.RequestBody.Value.Content.
+				Get("application/json").Schema)
+			firstLetter := schemaType[0]
+			params = append(params, Attribute{
+				Name: strings.ToLower(string(firstLetter)) + schemaType[1:],
+				Type: schemaType,
+			})
 
 			methodsWithParam[name] = ListOfAttributes{
 				Attributes:  params,
@@ -325,11 +402,18 @@ func (g Goruda) retrieveAbstraction(paths openapi3.Paths) AbstractionData {
 				}
 			}
 
-			for _, parameter := range item.Get.Parameters {
+			for _, parameter := range item.Put.Parameters {
 				schemaType, _ := g.getType(parameter.Value.Schema)
+				isRequired := false
+				switch parameter.Value.In {
+				case "path":
+					isRequired = true
+				case "query":
+				}
 				params = append(params, Attribute{
-					Name: parameter.Value.Name,
-					Type: schemaType,
+					Name:       parameter.Value.Name,
+					Type:       schemaType,
+					IsRequired: isRequired,
 				})
 			}
 
@@ -353,4 +437,41 @@ func (g Goruda) retrieveAbstraction(paths openapi3.Paths) AbstractionData {
 		Name:        "Service",
 		Methods:     methodsWithParam,
 	}
+}
+
+func (g Goruda) retrieveHTTPDeliveryData(paths openapi3.Paths) map[string]HTTPMethods {
+	httpMethods := map[string]HTTPMethods{}
+	for key, item := range paths {
+		if item.Get != nil {
+			name := item.Get.OperationID
+			params := Attributes{}
+			returnValues := Attributes{}
+			for code, resp := range item.Get.Responses {
+				if code == "200" {
+					t, _ := g.getType(resp.Value.Content.Get("application/json").Schema)
+					returnValues = append(returnValues, Attribute{
+						Type: t,
+					})
+				}
+			}
+			for _, parameter := range item.Get.Parameters {
+				schemaType, _ := g.getType(parameter.Value.Schema)
+				params = append(params, Attribute{
+					Name: parameter.Value.Name,
+					Type: schemaType,
+				})
+			}
+
+			h := HTTPMethods{
+				Path:        key,
+				MethodsName: "GET",
+				Data: ListOfAttributes{
+					Attributes:  params,
+					ReturnValue: returnValues,
+				},
+			}
+			httpMethods[name] = h
+		}
+	}
+	return httpMethods
 }
