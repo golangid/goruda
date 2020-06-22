@@ -31,6 +31,9 @@ type Attribute struct {
 }
 
 func (a Attribute) IsInteger() bool {
+	if strings.Contains(strings.ToLower(a.Type), "interface") {
+		return false
+	}
 	if strings.Contains(strings.ToLower(a.Type), "int") {
 		return true
 	}
